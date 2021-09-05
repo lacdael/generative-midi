@@ -2,9 +2,9 @@ A script that generates midi drum, bass and lead sequences, in a 4:4 time signat
 
 # Quick Start:
 
-- Run with defaults: `./generativeModo.py`  
-- help: `./generativeMidi.py -?`
-- `./generativeMidi.py --scale <scale> --root <root> --BPM <bpm> --RAND <randomization> --PORT <port> --DRUMS <tab file> --FILL <tab file> --PROGRESSIONS <progressions file>`  
+- Run with defaults: `./generateMidi.py`  
+- help: `./generateeMidi.py -?`
+- `./generateMidi.py --scale <scale> --root <root> --BPM <bpm> --RAND <randomization> --PORT <port> --DRUMS <tab file> --FILL <tab file> --PROGRESSIONS <progressions file>`  
 
 ## Arguments 
 
