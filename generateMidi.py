@@ -38,24 +38,89 @@ SCALES = {
   'locrian': (1, 2, 2, 1, 2, 2, 2),
 }
 
+MIXES = [
+        {"BD":True,"SD":True,"HH":True,"C1":True,"BASS":True,"LEAD":True,"DITTY":True},    
+        {"BD":True,"SD":True,"HH":False,"C1":False,"BASS":True,"LEAD":False,"DITTY":True},    
+        {"BD":False,"SD":False,"HH":True,"C1":False,"BASS":True,"LEAD":True,"DITTY":True},    
+        {"BD":True,"SD":False,"HH":False,"C1":False,"BASS":True,"LEAD":False,"DITTY":True},    
+        ]
+
+def canPlay( what , i ):
+    return MIXES[ i ][ what ];
+
+
 _BASS_MIDI_KEYS = {"c":36,"c#":37,"d":38,"d#":39,"e":40,"f":41,"f#":42,"g":43,"g#":44,"a":45,"a#":46,"b":47};
 _LEAD_MIDI_KEYS = {"c":60,"c#":61,"d":62,"d#":63,"e":64,"f":65,"f#":66,"g":67,"g#":68,"a":69,"a#":70,"b":71};
 
 def getBassNote( n ):
     if not n:
-        return "__";
+        return "";
     for k in _BASS_MIDI_KEYS.keys():
         if n == _BASS_MIDI_KEYS[k]:
             return k;
-    return "__";
+    return "";
 
 def getLeadNote( n ):
     if not n:
-        return "__";
+        return "";
     for k in _LEAD_MIDI_KEYS.keys():
         if n == _LEAD_MIDI_KEYS[k]:
             return k;
-    return "__";
+    return "";
+
+def getDitty( scale, root, prog):
+    def getOffsetNote(i,scale,root,offset):
+        _len = len(SCALES[ scale ])
+        if (offset - 1 ) < 0:
+            return None;
+        if i == "i":
+            return root + sum(SCALES[ scale ][ 0: (offset - 1) ]) if _len > (offset - 1) else None;
+        elif i == "ii":
+            return root  + sum(SCALES[ scale ][ 0:(1 + offset - 1) ]) if _len > (1 + offset - 1) else None;
+        elif i == "iii":
+            return root +  sum(SCALES[ scale ][ 0:(2 + offset - 1) ]) if _len > (2 + offset - 1) else None;
+        elif i == "iv":
+            return root +  sum(SCALES[ scale ][ 0:(3 + offset - 1) ]) if _len > (3 + offset - 1) else None;
+        elif i == "v":
+            return root +  sum(SCALES[ scale ][ 0:(4  + offset - 1) ]) if _len > (4 + offset - 1) else None;
+        return None;
+
+    arr = [];
+    for i in prog:
+        arr.append( getMidiKey( scale, i , root ) );
+    #find commond notes
+    tmp = {};
+    for i in prog:
+        if i == 'vi':
+            i = 'i';
+            
+        n = getMidiKey( scale, i , root );
+        
+        if n != None: 
+            k = str(n)
+            if k in tmp:
+                tmp[ k ] += 1;
+            else:
+                tmp[ k ] = 0;
+        n3 = getOffsetNote( i, scale , root, 3);
+        if n3 != None:
+            k = str(n3)
+            if k in tmp:
+                tmp[ k ] += 1;
+            else:
+                tmp [ k ] = 0;
+        n5 = getOffsetNote( i, scale , root, 5);
+        if n5 != None:
+            k = str(n5)
+            if k in tmp:
+                tmp[ k ] += 1;
+            else:
+                tmp [ k ] = 0;
+    for k in tmp.keys():
+        if k and tmp[k] > 0:
+            arr.append( int( k ) );
+    return arr;
+            
 
 def getMidiKey( scale, ind, root):
     if scale not in SCALES:
@@ -75,32 +140,31 @@ def getMidiKey( scale, ind, root):
         return root + sum(SCALES[ scale ][0:5]);
 
 def getCord( r , progs ):
+    global _STATE
     if not hasattr(getCord,"pnt"):
         getCord.pnt = 0
-    if not hasattr(getCord,"progPnt"):
-        getCord.progPnt = 0
-    cord = progs[ getCord.progPnt ][ getCord.pnt ];
+    cord = progs[ _STATE["PROGRESSION_PNT"] ][ getCord.pnt ];
     if randint(0,r) == 0:
         tries = 0;
         while tries < 10:
             tries += 1;
             newProgPnt = randint(0,len(progs) - 1);
-            if progs[ getCord.progPnt ][ getCord.pnt ] in progs[ newProgPnt ]:
+            if progs[ _STATE["PROGRESSION_PNT"] ][ getCord.pnt ] in progs[ newProgPnt ]:
                 newPnt = 0;
                 for ii in range(0, len( progs[ newProgPnt ])):
-                    if progs[ getCord.progPnt ][ getCord.pnt ] == progs[ newProgPnt ][ ii ]:
+                    if progs[ _STATE["PROGRESSION_PNT"] ][ getCord.pnt ] == progs[ newProgPnt ][ ii ]:
                         newPnt = ii;
                         break;
-                getCord.progPnt = newProgPnt;
+                _STATE["PROGRESSION_PNT"] = newProgPnt;
                 newPnt += 1
-                if newPnt >= len( progs[ getCord.progPnt ] ):
+                if newPnt >= len( progs[ _STATE["PROGRESSION_PNT"] ] ):
                     newPnt = 0;
                 getCord.pnt = newPnt;
         if tries == 10:
             getCord.pnt +=1;
     else:
         getCord.pnt +=1;
-    if getCord.pnt >= len(progs[ getCord.progPnt ]):
+    if getCord.pnt >= len(progs[ _STATE["PROGRESSION_PNT"] ]):
         getCord.pnt = 0;
     return cord;
 
@@ -120,7 +184,7 @@ def parseTab( s ):
         tmp["BD"] = [ "----------------" for i in range( 0 , len( tmp[ list(tmp.keys())[0] ] ) )];
     return tmp;
 
-def task( player ):
+def task( ):
     try:
         seq = None;
         pnt = 0;
@@ -132,55 +196,70 @@ def task( player ):
             pnt = _STATE["DRUM_PNT"];
         
         #DB
-        if seq["BD"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-":
-            player.note_on( 65 , velocity = 100,channel=0 );
+        if seq["BD"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-" and canPlay( "BD", _STATE["MIX"] ):
+            _player.note_on( 65 , velocity = 100,channel=0 );
             _STATE["NOTES"]["BD"] = 65;
         elif _STATE["NOTES"]["BD"]:
-            player.note_off( 65,channel=0);
+            _player.note_off( 65,channel=0);
             _STATE["NOTES"]["BD"] = None;
         #SD 
-        if seq["SD"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-":
-            player.note_on( 65 , velocity = 100,channel=1 );
+        if seq["SD"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-" and canPlay( "SD", _STATE["MIX"] ):
+            _player.note_on( 65 , velocity = 100,channel=1 );
             _STATE["NOTES"]["SD"] = 65;
         elif _STATE["NOTES"]["SD"]:
-            player.note_off( 65,channel=1);
+            _player.note_off( 65,channel=1);
             _STATE["NOTES"]["SD"] = None;
         #HH
-        if seq["HH"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-":
-            player.note_on( 65 , velocity = 100,channel=2 );
+        if seq["HH"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-" and canPlay( "HH", _STATE["MIX"] ):
+            _player.note_on( 65 , velocity = 100,channel=2 );
             _STATE["NOTES"]["HH"] = 65;
         elif _STATE["NOTES"]["HH"]:
-            player.note_off( 65,channel=2);
+            _player.note_off( 65,channel=2);
             _STATE["NOTES"]["HH"] = None;
         #C1
-        if seq["C1"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-":
-            player.note_on( 65 , velocity = 100,channel=3 );
+        if seq["C1"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-" and canPlay( "C1" , _STATE["MIX"] ):
+            _player.note_on( 65 , velocity = 100,channel=3 );
             _STATE["NOTES"]["C1"] = 65;
         elif _STATE["NOTES"]["C1"]:
-            player.note_off( 65,channel=3);
+            _player.note_off( 65,channel=3);
             _STATE["NOTES"]["C1"] = None;
         #BASS
         if ( seq["BD"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-" or
             seq["SD"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-"):
-            if randint(0, _STATE["RAND"] ) == 0:
+            if randint(0, _STATE["RAND"] ) == 0 and canPlay( "BASS", _STATE["MIX"] ):
                 _STATE["NOTES"]["BASS"] = getMidiKey( _STATE["SCALE"], _STATE["CORD"], _STATE["ROOT_BASS"] );
-                player.note_on( _STATE["NOTES"]["BASS"] , velocity = 100,channel=4 );
-        elif _STATE["NOTES"]["BASS"]:
-            player.note_off( _STATE["NOTES"]["BASS"] , velocity = 100,channel=4 );
-            _STATE["NOTES"]["BASS"] = None;
-        
+                _player.note_on( _STATE["NOTES"]["BASS"] , velocity = 100,channel=4 );
+            if not _STATE["NOTES"]["DITTY_NOTE"] and canPlay( "DITTY", _STATE["MIX"] ) and _STATE["NOTES"]["DITTY"] and randint(0,1) == 0:
+                n = _STATE["NOTES"]["DITTY"].pop();
+                _player.note_on( n , velocity = randint(75, 100) ,channel=6 );
+                _STATE["NOTES"]["DITTY_NOTE"] = n;
+        else:
+            if _STATE["NOTES"]["BASS"]:
+                _player.note_off( _STATE["NOTES"]["BASS"] , velocity = 100,channel=4 );
+                _STATE["NOTES"]["BASS"] = None;
+            if _STATE["NOTES"]["DITTY_NOTE"] and randint(0,_STATE["RAND"]) == 0:
+                _player.note_off( _STATE["NOTES"]["DITTY_NOTE"] , velocity = randint(70,100) ,channel=6 );
+                _STATE["NOTES"]["DITTY_NOTE"] = None;
         
         if _STATE["SIXTEENTH_PNT"] == 0:
+            #NEW MIX
+            _STATE["MIX"] = 0;
+            if randint(0,_STATE["RAND"]) == 0:
+                _STATE["MIX"] = randint(0, len(MIXES) - 1);
             #LEAD
             if _STATE["NOTES"]["LEAD"]:
-                player.note_off( _STATE["NOTES"]["LEAD"], velocity = 100,channel=5 );
+                _player.note_off( _STATE["NOTES"]["LEAD"], velocity = 100,channel=5 );
             _STATE["CORD"] = getCord( _STATE["RAND"] , _STATE["PROGRESSIONS"] );
             _STATE["NOTES"]["LEAD"] = getMidiKey( _STATE["SCALE"], _STATE["CORD"], _STATE["ROOT_LEAD"]);
-            player.note_on( _STATE["NOTES"]["LEAD"] , velocity = 100,channel=5 );
+            if canPlay("LEAD", _STATE["MIX"] ):
+                _player.note_on( _STATE["NOTES"]["LEAD"] , velocity = 100,channel=5 );
             
             #NEW DRUm Pnt
             if _STATE["BAR"] == 3:
                 _STATE["FILL_PNT"] = randint(0,len( _STATE["FILLS"] ) - 1);
+            elif _STATE["BAR"] == 1 and randint(0,_STATE["RAND"]) == 0:
+                _STATE["NOTES"]["DITTY"] = getDitty( _STATE["SCALE"], _STATE["ROOT_LEAD"], _STATE["PROGRESSIONS"][ _STATE["PROGRESSION_PNT"] ] );
+            
             else:
                 _STATE["DRUM_PNT"] = randint(0,len( _STATE["DRUMS"] ) - 1);
         elif _STATE["SIXTEENTH_PNT"] == 15:
@@ -195,32 +274,35 @@ def task( player ):
         traceback.print_exc()
 
 _STATE = {};
+_player = None;
 
 def main( args ):
-    global _STATE ;
+    global _STATE, _player;
 
     args["ROOT_BASS"] = _BASS_MIDI_KEYS[ args["ROOT"] ];
     args["ROOT_LEAD"] = _LEAD_MIDI_KEYS[ args["ROOT"] ];
     args["RUNNING"] = True
     args["BAR"] = 1;
-    args["CORD"] = getCord( args["RAND"], args["PROGRESSIONS"]);
+    args["MIX"] = 0;
     args["SIXTEENTH"] = ( 60 / ( args["BPM"] * 4 ) );
 
+    args["PROGRESSION_PNT"] = 0;
     args["SIXTEENTH_PNT"] = 0;
     args["DRUM_PNT"] = randint(0,len( args["DRUMS"]["BD"]) - 1);
     args["FILL_PNT"] = randint(0,len( args["FILLS"]["BD"]) - 1);
-    args["NOTES"] = { "BD":None, "SD":None, "HH":None, "C1":None, "BASS": None, "LEAD":None };
+    args["NOTES"] = { "BD":None, "SD":None, "HH":None, "C1":None, "BASS": None, "LEAD":None,"DITTY":[],"DITTY_NOTE":None};
     
     _STATE = args;
+    _STATE["CORD"] = getCord( args["RAND"], args["PROGRESSIONS"]);
 
     print("Setting up midi.")
     
     pygame.midi.init()
-    player = pygame.midi.Output( args["PORT"] );
+    _player = pygame.midi.Output( args["PORT"] );
 
     while _STATE["RUNNING"]:
-        task( player );
-        print( "\r {:4s} {} {} {} {} {:2s} {:2s}".format(
+        task( );
+        print( "\r {:4s} {} {} {} {} {:2s} {:2s} {:2s}".format(
             _STATE["CORD"] ,
             ( _STATE["DRUMS"]["BD"][ _STATE["DRUM_PNT"] ][ _STATE["SIXTEENTH_PNT" ] ]
                 if _STATE["BAR"] < 4 else _STATE["FILLS"]["BD"][ _STATE["FILL_PNT"] ][ _STATE["SIXTEENTH_PNT"] ]),
@@ -230,8 +312,9 @@ def main( args ):
                 if _STATE["BAR"] < 4 else _STATE["FILLS"]["HH"][ _STATE["FILL_PNT"] ][ _STATE["SIXTEENTH_PNT"] ]),
             ( _STATE["DRUMS"]["C1"][ _STATE["DRUM_PNT"] ][ _STATE["SIXTEENTH_PNT" ] ]
                 if _STATE["BAR"] < 4 else _STATE["FILLS"]["C1"][ _STATE["FILL_PNT"] ][ _STATE["SIXTEENTH_PNT"] ]),
-             getBassNote( _STATE["NOTES"]["BASS"] ) ,
-             getLeadNote( _STATE["NOTES"]["LEAD"] )          
+             getBassNote( _STATE["NOTES"]["BASS"] ).upper() ,
+             getLeadNote( _STATE["NOTES"]["LEAD"] ),          
+             getLeadNote( _STATE["NOTES"]["DITTY_NOTE"] )          
              ), end="" );
         time.sleep( _STATE["SIXTEENTH"] );
 
@@ -275,28 +358,34 @@ def parseArgs():
                 i += 1;
             elif sys.argv[i] == "--PROGRESSIONS":
                 i += 1;
-                tmp["PROGRESSIONS"] = sys.argv[i];
                 try:
+                    arr = None;
                     with open(sys.argv[i]) as f:
-                        tmp1 = f.read(f);
+                        arr = f.read(f);
+                    if arr:
+                        tmp["PROGRESSIONS"] = [ arr[i].split("-") for i in range(0,len(arr)) ];
                 except:
                     traceback.print_exc();
                 i += 1;
             elif sys.argv[i] == "--DRUMS":
                 i += 1;
-                tmp["DRUMS"] = sys.argv[i];
+                tab = None;
                 try:
                     with open(sys.argv[i]) as f:
-                        tmp1 = f.read(f);
+                        tab = f.read(f);
+                    if tab:
+                        tmp["DRUMS"] = parseTab( tab );
                 except:
                     traceback.print_exc();
                 i += 1;
             elif sys.argv[i] == "--FILLS":
                 i += 1;
-                tmp["FILLS"] = sys.argv[i];
                 try:
+                    tab = None;
                     with open(sys.argv[i]) as f:
-                        tmp1 = f.read(f);
+                        tmp["FILLS"] = f.read(f);
+                    if tab:
+                        tmp["FILLS"] = parseTab( tab );
                 except:
                     traceback.print_exc();
                 i += 1;
