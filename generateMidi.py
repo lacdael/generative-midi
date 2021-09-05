@@ -9,7 +9,10 @@ from random import randint
 import time
 import sys
 import traceback
-import pygame.midi
+import mido
+from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
+
 
 SCALES = {
   'major': (2, 2, 1, 2, 2, 2, 1),
@@ -197,48 +200,48 @@ def task( ):
         
         #DB
         if seq["BD"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-" and canPlay( "BD", _STATE["MIX"] ):
-            _player.note_on( 65 , velocity = 100,channel=0 );
+            _player.send( mido.Message('note_on', note=65 , velocity = 100,channel=0 ));
             _STATE["NOTES"]["BD"] = 65;
         elif _STATE["NOTES"]["BD"]:
-            _player.note_off( 65,channel=0);
+            _player.send( mido.Message('note_off',note=65,channel=0));
             _STATE["NOTES"]["BD"] = None;
         #SD 
         if seq["SD"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-" and canPlay( "SD", _STATE["MIX"] ):
-            _player.note_on( 65 , velocity = 100,channel=1 );
+            _player.send( mido.Message('note_on',note=65 , velocity = 100,channel=1 ));
             _STATE["NOTES"]["SD"] = 65;
         elif _STATE["NOTES"]["SD"]:
-            _player.note_off( 65,channel=1);
+            _player.send( mido.Message('note_off', note=65,channel=1));
             _STATE["NOTES"]["SD"] = None;
         #HH
         if seq["HH"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-" and canPlay( "HH", _STATE["MIX"] ):
-            _player.note_on( 65 , velocity = 100,channel=2 );
+            _player.send( mido.Message('note_on', note=65 , velocity = 100,channel=2 ));
             _STATE["NOTES"]["HH"] = 65;
         elif _STATE["NOTES"]["HH"]:
-            _player.note_off( 65,channel=2);
+            _player.send( mido.Message('note_off',note=65,channel=2));
             _STATE["NOTES"]["HH"] = None;
         #C1
         if seq["C1"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-" and canPlay( "C1" , _STATE["MIX"] ):
-            _player.note_on( 65 , velocity = 100,channel=3 );
+            _player.send( mido.Message('note_on',note= 65 , velocity = 100,channel=3 ));
             _STATE["NOTES"]["C1"] = 65;
         elif _STATE["NOTES"]["C1"]:
-            _player.note_off( 65,channel=3);
+            _player.send( mido.Message('note_off', note=65,channel=3));
             _STATE["NOTES"]["C1"] = None;
         #BASS
         if ( seq["BD"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-" or
             seq["SD"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-"):
             if randint(0, _STATE["RAND"] ) == 0 and canPlay( "BASS", _STATE["MIX"] ):
                 _STATE["NOTES"]["BASS"] = getMidiKey( _STATE["SCALE"], _STATE["CORD"], _STATE["ROOT_BASS"] );
-                _player.note_on( _STATE["NOTES"]["BASS"] , velocity = 100,channel=4 );
+                _player.send( mido.Message('note_on', note=_STATE["NOTES"]["BASS"] , velocity = 100,channel=4 ));
             if not _STATE["NOTES"]["DITTY_NOTE"] and canPlay( "DITTY", _STATE["MIX"] ) and _STATE["NOTES"]["DITTY"] and randint(0,1) == 0:
                 n = _STATE["NOTES"]["DITTY"].pop();
-                _player.note_on( n , velocity = randint(75, 100) ,channel=6 );
+                _player.send( mido.Message('note_on', note=n , velocity = randint(75, 100) ,channel=6 ));
                 _STATE["NOTES"]["DITTY_NOTE"] = n;
         else:
             if _STATE["NOTES"]["BASS"]:
-                _player.note_off( _STATE["NOTES"]["BASS"] , velocity = 100,channel=4 );
+                _player.send( mido.Message('note_off', note=_STATE["NOTES"]["BASS"] , velocity = 100,channel=4 ));
                 _STATE["NOTES"]["BASS"] = None;
             if _STATE["NOTES"]["DITTY_NOTE"] and randint(0,_STATE["RAND"]) == 0:
-                _player.note_off( _STATE["NOTES"]["DITTY_NOTE"] , velocity = randint(70,100) ,channel=6 );
+                _player.send( mido.Message('note_off', note=_STATE["NOTES"]["DITTY_NOTE"] , velocity = randint(70,100) ,channel=6 ) );
                 _STATE["NOTES"]["DITTY_NOTE"] = None;
         
         if _STATE["SIXTEENTH_PNT"] == 0:
@@ -248,11 +251,11 @@ def task( ):
                 _STATE["MIX"] = randint(0, len(MIXES) - 1);
             #LEAD
             if _STATE["NOTES"]["LEAD"]:
-                _player.note_off( _STATE["NOTES"]["LEAD"], velocity = 100,channel=5 );
+                _player.send( mido.Message( 'note_off', note= _STATE["NOTES"]["LEAD"], velocity = 100, channel=5 ) );
             _STATE["CORD"] = getCord( _STATE["RAND"] , _STATE["PROGRESSIONS"] );
             _STATE["NOTES"]["LEAD"] = getMidiKey( _STATE["SCALE"], _STATE["CORD"], _STATE["ROOT_LEAD"]);
             if canPlay("LEAD", _STATE["MIX"] ):
-                _player.note_on( _STATE["NOTES"]["LEAD"] , velocity = 100,channel=5 );
+                _player.send( mido.Message('note_on', note=_STATE["NOTES"]["LEAD"] , velocity = 100, channel=5 ));
             
             #NEW DRUm Pnt
             if _STATE["BAR"] == 3:
@@ -295,12 +298,9 @@ def main( args ):
     _STATE = args;
     _STATE["CORD"] = getCord( args["RAND"], args["PROGRESSIONS"]);
 
-    print("Setting up midi.")
-    
-    pygame.midi.init()
-    _player = pygame.midi.Output( args["PORT"] );
-
-    while _STATE["RUNNING"]:
+    _player = mido.open_output( args["PORT"] );
+ 
+    def job():
         task( );
         print( "\r {:4s} {} {} {} {} {:2s} {:2s} {:2s}".format(
             _STATE["CORD"] ,
@@ -316,7 +316,10 @@ def main( args ):
              getLeadNote( _STATE["NOTES"]["LEAD"] ),          
              getLeadNote( _STATE["NOTES"]["DITTY_NOTE"] )          
              ), end="" );
-        time.sleep( _STATE["SIXTEENTH"] );
+
+    scheduler = BlockingScheduler()
+    scheduler.add_job(job, 'interval', seconds=_STATE["SIXTEENTH"]);
+    scheduler.start()
 
 def printHelp( name ):
     if not name:
@@ -401,7 +404,14 @@ def parseArgs():
         if "BPM" not in tmp:
             tmp["BPM"] = 86
         if "PORT" not in tmp:
-            tmp["PORT"] = 0
+            arr = mido.get_output_names();
+            for p in range(0,len(arr)):
+                print("[{}] {}".format( p + 1, arr[p]));
+            selected = -1;
+            while selected < 1 or selected > len(arr):
+                selected = int( input("Enter a MIDI device:") );
+
+            tmp["PORT"] = arr[ selected - 1 ];
         if "RAND" not in tmp:
             tmp["RAND"] = 2;
         if "PROGRESSIONS" not in tmp:
