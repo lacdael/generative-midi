@@ -1,6 +1,6 @@
 A script that generates midi drum, bass and lead sequences, in a 4:4 time signature
 
-#Quick Start:
+# Quick Start:
 
 - Run with defaults: `./generativeModo.py`  
 - help: `./generativeMidi.py -?`
@@ -19,32 +19,30 @@ A script that generates midi drum, bass and lead sequences, in a 4:4 time signat
 
 ## Progressions
 
-`i-vi-iv-v  
-ii-iii-i-i  
-iv-iii-ii-i  
-iii-v-i-i  
-ii-v-i-i  
-i-iv-ii-v  
-i-v-vi-iv  
-i-vi-ii-v  
-v-iv-i-i`  
+`i-vi-iv-v`   
+`ii-iii-i-i`  
+`iv-iii-ii-i`  
+`iii-v-i-i`  
+`ii-v-i-i ` 
+`i-iv-ii-v`  
+`i-v-vi-iv`  
+`i-vi-ii-v` 
+`v-iv-i-i`  
 
 ## Drum tabs
-`
-C1|----------------|------x---------|--------------x-|--------------x-|  
-HH|x-x-x-x-x-x-x-x-|x-x-x---x-x-x-x-|x-x-x-x-x-x-x---|x-x-x---x-x-x---|  
-SD|----o-------o---|----o-------o---|----o-------o---|----o-------o---|  
-BD|o-----o---o-----|o-----o---o-----|o-----o-o-------|o-----o---o-----|`
+`C1|----------------|------x---------|--------------x-|--------------x-|`  
+`HH|x-x-x-x-x-x-x-x-|x-x-x---x-x-x-x-|x-x-x-x-x-x-x---|x-x-x---x-x-x---|`  
+`SD|----o-------o---|----o-------o---|----o-------o---|----o-------o---|`  
+`BD|o-----o---o-----|o-----o---o-----|o-----o-o-------|o-----o---o-----|`
 
 ## Fill tabs
 
-`
-C1|------------x-x-|------x-------x-|--------x-x-x-x-|------------x-x-|  
-HH|x-x-x-x-x-x-----|x-x-x---x-x-x---|x-x-x-x---------|x-x-x-x-x-x-----|  
-SD|----o-------o-o-|----o-------o---|----o-------o-o-|----o-------o-o-|  
-BD|o-----o---o-----|o-----o-o-o---o-|o-----o-o-------|o---------o-----|`
+`C1|------------x-x-|------x-------x-|--------x-x-x-x-|------------x-x-|`  
+`HH|x-x-x-x-x-x-----|x-x-x---x-x-x---|x-x-x-x---------|x-x-x-x-x-x-----|`  
+`SD|----o-------o-o-|----o-------o---|----o-------o-o-|----o-------o-o-|`  
+`BD|o-----o---o-----|o-----o-o-o---o-|o-----o-o-------|o---------o-----|`
 
-#dependencies:
+# dependencies:
 
 - pygame
 
