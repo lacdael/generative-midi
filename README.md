@@ -4,16 +4,17 @@ A script that generates midi drum, bass and lead sequences, in a 4:4 time signat
 
 - Run with defaults: `./generateMidi.py`  
 - help: `./generateMidi.py -?`
-- `./generateMidi.py --scale <scale> --root <root> --BPM <bpm> --RAND <randomization> --PORT <port> --DRUMS <tab file> --FILL <tab file> --PROGRESSIONS <progressions file>`  
+- `./generateMidi.py --scale <scale> --root <root> --BPM <bpm> --RAND <randomization> --PORT <port> --DRUMS <tab file> --FILL <tab file> --PROGRESSIONS <progressions file> --ARP <arpeggiator sequence>`  
 
 ## Arguments 
 
-- scales: major, minor, melodicminor, harmonicminor, pentatonicmajor, bluesmajor, pentatonicminor, bluesminor, augmented, diminished, chromatic, wholehalf, halfwhole, wholetone, augmentedfifth, japanese, oriental, ionian, dorian, phrygian, lydian, mixolydian, aeolian, locrian  
+- scale: major, minor, melodicminor, harmonicminor, pentatonicmajor, bluesmajor, pentatonicminor, bluesminor, augmented, diminished, chromatic, wholehalf, halfwhole, wholetone, augmentedfifth, japanese, oriental, ionian, dorian, phrygian, lydian, mixolydian, aeolian, locrian  
 - root: c,c#,d,d#,e,f,f#,g,g#,a,a#,b  
-- randomization: 1-5  
-- port: midi port name (else, prompted to choose midi port) 
+- randomization: 1-5 (1 = most, 5 = least, default = 2)  
+- port: midi port name (chose midi device when prompted) 
 - tab file: a file containing drum tabs, with soxteenth divisions, and labels: BD, SD, HH, C1  
-- progressions file: a file containing cord progressions e.g i-vi-iv-v"  
+- progressions file: a file containing cord progressions e.g `i-vi-iv-v`
+- arpeggiator sequence e.g. `1-3--53-`
 
 # defaults
 
@@ -47,6 +48,25 @@ A script that generates midi drum, bass and lead sequences, in a 4:4 time signat
 - mido
 - apscheduler
 
-# Why ?
+# MIDI Mapping
 
-I wrote this to create backing tracks to poetry recitals. One of my favourite songs is `Born Again ~ Death in June` which is a pop-punk song. I believe part of the reason I like this song is because of the psudo randomness to the backing track. Along with growing up listening to `IDM` this is what inspired me to write this script.
+|  Instrument | Channel | Key      |
+|-------------|---------|----------|
+| Bass Drum   | 1       | 36 (C2)  |
+| Snare Drum  | 1       | 38 (D2)  |
+| Hi-Hat      | 1       | 42 (F#2) |
+| Cymbal      | 1       | 49 (C#3) |
+| Ride1†      | 1       | 51 (D#3) |
+| Ride2†      | 1       | 59 (B3)  |
+| Tambourine† | 1       | 54 (F#3) |
+| Cowbell†    | 1       | 56 (G#3) |
+| Bass        | 2       |  -       |
+| Pad         | 3       |  -       |
+| Lead ditty  | 4       |  -       |
+
+† Intendend to be used as sample triggers. Notes cycle every 16 bars and a random trigger.
+
+#TODOs
+
+- finish off arpeggiator code 
+- allow for multi tab files
