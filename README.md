@@ -66,7 +66,3 @@ A script that generates midi drum, bass and lead sequences, in a 4:4 time signat
 
 † Intendend to be used as sample triggers. Notes cycle every 16 bars and a random trigger.
 
-#TODOs
-
-- finish off arpeggiator code 
-- allow for multi tab files

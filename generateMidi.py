@@ -4,6 +4,7 @@
 from random import randint
 import time
 import sys
+import re
 import traceback
 import mido
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -49,39 +50,47 @@ def canPlay( what , i ):
 
 
 _BASS_MIDI_KEYS = {"c":36,"c#":37,"d":38,"d#":39,"e":40,"f":41,"f#":42,"g":43,"g#":44,"a":45,"a#":46,"b":47};
-_LEAD_MIDI_KEYS = {"c":60,"c#":61,"d":62,"d#":63,"e":64,"f":65,"f#":66,"g":67,"g#":68,"a":69,"a#":70,"b":71};
+_LEAD_MIDI_KEYS = {"c":48,"c#":49,"d":50,"d#":51,"e":52,"f":53,"f#":54,"g":55,"g#":56,"a":57,"a#":58,"b":57};
+#_LEAD_MIDI_KEYS = {"c":60,"c#":61,"d":62,"d#":63,"e":64,"f":65,"f#":66,"g":67,"g#":68,"a":69,"a#":70,"b":71};
 
-def getBassNote( n ):
+
+def getNote( n ):
     if not n:
         return "";
-    for k in _BASS_MIDI_KEYS.keys():
-        if n == _BASS_MIDI_KEYS[k]:
-            return k;
-    return "";
-
-def getLeadNote( n ):
-    if not n:
-        return "";
-    for k in _LEAD_MIDI_KEYS.keys():
-        if n == _LEAD_MIDI_KEYS[k]:
-            return k;
+    notes = ["c","c#","d","d#","e","f","f#","g","g#","a","a#","b"];
+    for i in [ 0, 12, 24, 36, 48, 60, 72, 84, 96, 108, 120 ]:
+        if i > n:
+            n = notes[ n - i];
+            return n;
     return "";
 
 def getOffsetNote(i,scale,root,offset):
     _len = len(SCALES[ scale ])
-    if (offset - 1 ) < 0:
-        return None;
+    index = 1;
     if i == "i":
-        return root + sum(SCALES[ scale ][ 0: (offset - 1) ]) if _len > (offset - 1) else None;
-    elif i == "ii":
-        return root  + sum(SCALES[ scale ][ 0:(1 + offset - 1) ]) if _len > (1 + offset - 1) else None;
+        index = 1;
+    elif i == "iI":
+        index = 2;
     elif i == "iii":
-        return root +  sum(SCALES[ scale ][ 0:(2 + offset - 1) ]) if _len > (2 + offset - 1) else None;
+        index = 3;
     elif i == "iv":
-        return root +  sum(SCALES[ scale ][ 0:(3 + offset - 1) ]) if _len > (3 + offset - 1) else None;
+        index = 4;
     elif i == "v":
-        return root +  sum(SCALES[ scale ][ 0:(4  + offset - 1) ]) if _len > (4 + offset - 1) else None;
-    return None;
+        index = 5;
+    elif i == "vi":
+        index = 6;
+    elif i == "vii":
+        index = 7;
+    elif i == "viii":
+        index = 8;
+
+    root += 12 * ( ( index -1 ) // _len );
+
+    steps = ( index - 1 ) + ( ( offset - 1 ) if offset else 0 );
+
+    root += 12 * ( steps // _len );
+
+    return root + sum(SCALES[ scale ][ 0 : ( steps % _len ) ]);
 
 
 def getDitty( scale, root, prog):
@@ -228,6 +237,15 @@ def task( ):
         elif _STATE["NOTES"]["C1"]:
             _player.send( mido.Message('note_off', note=C1_KEY, channel=0));
             _STATE["NOTES"]["C1"] = None;
+        
+        if _STATE["NOTES"]["BASS"]:
+            _player.send( mido.Message('note_off', note=_STATE["NOTES"]["BASS"] , velocity = 100,channel=4 ));
+            _STATE["NOTES"]["BASS"] = None;
+        if _STATE["NOTES"]["DITTY_NOTE"] and randint(0,_STATE["RAND"]) == 0:
+            _player.send( mido.Message('note_off', note=_STATE["NOTES"]["DITTY_NOTE"] , velocity = randint(70,100) ,channel=6 ) );
+            _STATE["NOTES"]["DITTY_NOTE"] = None;
+        
+
         #BASS
         if ( seq["BD"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-" or
             seq["SD"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-"):
@@ -238,14 +256,8 @@ def task( ):
                 n = _STATE["NOTES"]["DITTY"].pop();
                 _player.send( mido.Message('note_on', note=n , velocity = randint(75, 100) ,channel=6 ));
                 _STATE["NOTES"]["DITTY_NOTE"] = n;
-        else:
-            if _STATE["NOTES"]["BASS"]:
-                _player.send( mido.Message('note_off', note=_STATE["NOTES"]["BASS"] , velocity = 100,channel=4 ));
-                _STATE["NOTES"]["BASS"] = None;
-            if _STATE["NOTES"]["DITTY_NOTE"] and randint(0,_STATE["RAND"]) == 0:
-                _player.send( mido.Message('note_off', note=_STATE["NOTES"]["DITTY_NOTE"] , velocity = randint(70,100) ,channel=6 ) );
-                _STATE["NOTES"]["DITTY_NOTE"] = None;
         
+       
         if _STATE["SIXTEENTH_PNT"] == 0:
             
             #NEW MIX
@@ -263,12 +275,12 @@ def task( ):
                 
             #NEW DRUm Pnt
             if _STATE["BAR"] == 3:
-                _STATE["FILL_PNT"] = randint(0,len( _STATE["FILLS"] ) - 1);
+                _STATE["FILL_PNT"] = randint(0,len( _STATE["FILLS"]["BD"] ) - 1);
             elif _STATE["BAR"] == 1 and randint(0,_STATE["RAND"]) == 0:
                 _STATE["NOTES"]["DITTY"] = getDitty( _STATE["SCALE"], _STATE["ROOT_LEAD"], _STATE["PROGRESSIONS"][ _STATE["PROGRESSION_PNT"] ] );
             
             else:
-                _STATE["DRUM_PNT"] = randint(0,len( _STATE["DRUMS"] ) - 1);
+                _STATE["DRUM_PNT"] = randint(0,len( _STATE["DRUMS"]["BD"] ) - 1);
         
             #TRIGGERS
             _STATE["BAR16_PNT"] += 1;
@@ -300,16 +312,20 @@ def task( ):
             if _STATE["NOTES"]["ARP"]:
                 _player.send( mido.Message( 'note_off', note= _STATE["NOTES"]["ARP"], velocity = 100, channel=5 ) );
                 _STATE["NOTES"]["ARP"] = None;
-            if _STATE["APR"][ _STATE["ARP_PNT"] ] in ["1","3","4","5"]:
+            if _STATE["ARP"][ _STATE["ARP_PNT"] ] in ["1","3","4","5"]:
                 n = getOffsetNote( _STATE["CORD"], _STATE["SCALE"], _STATE["ROOT_LEAD"] , int( _STATE["ARP"][ _STATE["ARP_PNT"] ] ) );
                 if n:
                     _player.send( mido.Message('note_on', note=n , velocity = 100, channel=5 ));
                     _STATE["NOTES"]["ARP"] = n;
+            _STATE["ARP_PNT"] += 1;
+            if _STATE["ARP_PNT"] >= len(_STATE["ARP"]):
+                _STATE["ARP_PNT"] = 0;
             
         _STATE["SIXTEENTH_PNT"] += 1;
         if _STATE["SIXTEENTH_PNT"] > 15:
             _STATE["SIXTEENTH_PNT"] = 0;
     except:
+        print( _STATE );
         traceback.print_exc()
 
 _STATE = {};
@@ -344,68 +360,66 @@ def main( args ):
         _player.send( mido.Message( 'note_on', note=36, velocity = 100, channel=0 ) );
         time.sleep(0.2);
         _player.send( mido.Message('note_off', note=36, velocity = 100, channel=0 ));
-        done = input("Have you mapped notes 36 for channel 0 ? [y]es/[n]o?");
+        done = input("Have you mapped BD to note {} ({}) for channel 0 ? [y]es/[n]o?".format(36,getNote(36)));
     done ="n";
     while done != "y":
         _player.send( mido.Message( 'note_on', note=38, velocity = 100, channel=0 ) );
         time.sleep(0.2);
         _player.send( mido.Message('note_off', note=38, velocity = 100, channel=0 ));
-        done = input("Have you mapped notes 38 for channel 0 ? [y]es/[n]o?");
+        done = input("Have you mapped SD to note {} ({}) for channel 0 ? [y]es/[n]o?".format(38,getNote(38)));
     done ="n";
     while done != "y":
         _player.send( mido.Message( 'note_on', note=42, velocity = 100, channel=0 ) );
         time.sleep(0.2);
         _player.send( mido.Message('note_off', note=42, velocity = 100, channel=0 ));
-        done = input("Have you mapped note 42 for channel 0 ? [y]es/[n]o?");
+        done = input("Have you mapped HH to note {} ({}) for channel 0 ? [y]es/[n]o?".format(42,getNote(42)));
     done ="n";
     while done != "y":
         _player.send( mido.Message( 'note_on', note=49, velocity = 100, channel=0 ) );
         time.sleep(0.2);
         _player.send( mido.Message('note_off', note=49, velocity = 100, channel=0 ));
-        done = input("Have you mapped note 49 for channel 0 ? [y]es/[n]o?");
+        done = input("Have you mapped C1 to note {} ({}) for channel 0 ? [y]es/[n]o?".format(49,getNote(49)));
     done ="n";
     while done != "y":
         _player.send( mido.Message( 'note_on', note=51, velocity = 100, channel=0 ) );
         time.sleep(0.2);
         _player.send( mido.Message('note_off', note=51, velocity = 100, channel=0 ));
-        done = input("Have you mapped note 51 for channel 0 ? [y]es/[n]o?");
+        done = input("Have you mapped note {} ({}) for channel 0 ? [y]es/[n]o?".format(51,getNote(51)));
     done ="n";
     while done != "y":
         _player.send( mido.Message( 'note_on', note=59, velocity = 100, channel=0 ) );
         time.sleep(0.2);
         _player.send( mido.Message('note_off', note=59, velocity = 100, channel=0 ));
-        done = input("Have you mapped note 59 for channel 0 ? [y]es/[n]o?");
+        done = input("Have you mapped note {} ({}) for channel 0 ? [y]es/[n]o?".format(59,getNote(59)));
     done ="n";
     while done != "y":
         _player.send( mido.Message( 'note_on', note=54, velocity = 100, channel=0 ) );
         time.sleep(0.2);
         _player.send( mido.Message('note_off', note=54, velocity = 100, channel=0 ));
-        done = input("Have you mapped note 54 for channel 0 ? [y]es/[n]o?");
+        done = input("Have you mapped note {} ({}) for channel 0 ? [y]es/[n]o?".format(54,getNote(54)));
     done ="n";
     while done != "y":
         _player.send( mido.Message( 'note_on', note=56, velocity = 100, channel=0 ) );
         time.sleep(0.2);
         _player.send( mido.Message('note_off', note=56, velocity = 100, channel=0 ));
-        done = input("Have you mapped note 56 for channel 0 ? [y]es/[n]o?");
+        done = input("Have you mapped note {} ({}) for channel 0 ? [y]es/[n]o?".format(56,getNote(56)));
 
 
     def job():
-        task( );
-        print( "{:4s} {} {} {} {} {:2s} {:2s} {:2s} {:2s}".format(
+        tmp = _STATE["NOTES"];
+        print( "{:4s} {} {} {} {} {:2s} {:2s} {:2s} {:2s} {:2s}".format(
             _STATE["CORD"] ,
-            ( _STATE["DRUMS"]["BD"][ _STATE["DRUM_PNT"] ][ _STATE["SIXTEENTH_PNT" ] ]
-                if _STATE["BAR"] < 4 else _STATE["FILLS"]["BD"][ _STATE["FILL_PNT"] ][ _STATE["SIXTEENTH_PNT"] ]),
-            ( _STATE["DRUMS"]["SD"][ _STATE["DRUM_PNT"] ][ _STATE["SIXTEENTH_PNT" ] ]
-                if _STATE["BAR"] < 4 else _STATE["FILLS"]["SD"][ _STATE["FILL_PNT"] ][ _STATE["SIXTEENTH_PNT"] ]),
-            ( _STATE["DRUMS"]["HH"][ _STATE["DRUM_PNT"] ][ _STATE["SIXTEENTH_PNT" ] ]
-                if _STATE["BAR"] < 4 else _STATE["FILLS"]["HH"][ _STATE["FILL_PNT"] ][ _STATE["SIXTEENTH_PNT"] ]),
-            ( _STATE["DRUMS"]["C1"][ _STATE["DRUM_PNT"] ][ _STATE["SIXTEENTH_PNT" ] ]
-                if _STATE["BAR"] < 4 else _STATE["FILLS"]["C1"][ _STATE["FILL_PNT"] ][ _STATE["SIXTEENTH_PNT"] ]),
-             getBassNote( _STATE["NOTES"]["BASS"] ).upper() ,
-             getLeadNote( _STATE["NOTES"]["LEAD"] ),          
-             getLeadNote( _STATE["NOTES"]["DITTY_NOTE"] ),        
-             _STATE["NOTES"]["TRIGGER"] if _STATE["NOTES"]["TRIGGER"] else ""          
+            ( "o" if tmp["BD"] else "-" ),
+            ( "o" if tmp["SD"] else "-" ),
+            ( "x" if tmp["HH"] else "-" ),
+            ( "x" if tmp["C1"] else "-" ),
+             getNote( tmp["BASS"] ).upper() ,
+             getNote( tmp["LEAD"] ),          
+             getNote( tmp["ARP"] ),          
+             getNote( tmp["DITTY_NOTE"] ),        
+             getNote( tmp["TRIGGER"] ) if tmp["TRIGGER"] else ""          
              ));
+        task( );
 
     scheduler = BlockingScheduler()
     scheduler.add_job(job, 'interval', seconds=_STATE["SIXTEENTH"]);
@@ -429,11 +443,11 @@ def parseArgs():
     i = 1;
     try:
         while len(sys.argv) - i > 0:
-            if sys.argv[i] == "--scale":
+            if sys.argv[i] == "--SCALE":
                 i += 1;
-                tmp["SCALE"] = int(sys.argv[i],0);
+                tmp["SCALE"] = sys.argv[i];
                 i += 1;
-            elif sys.argv[i] == "--root":
+            elif sys.argv[i] == "--ROOT":
                 i += 1;
                 tmp["ROOT"] = int(sys.argv[i]);
                 i += 1;
@@ -444,6 +458,8 @@ def parseArgs():
             elif sys.argv[i] == "--RAND":
                 i += 1;
                 tmp["RAND"] = int(sys.argv[i],0);
+                if tmp["RAND"] > 5:
+                    tmp["RAND"] = 5;
                 i += 1;
             elif sys.argv[i] == "--PORT":
                 i += 1;
@@ -451,7 +467,7 @@ def parseArgs():
                 i += 1;
             elif sys.argv[i] == "--ARP":
                 i += 1;
-                tmp["ARP"] = int(sys.argv[i],0);
+                tmp["ARP"] = sys.argv[i];
                 i += 1;
             elif sys.argv[i] == "--PROGRESSIONS":
                 i += 1;
@@ -469,9 +485,16 @@ def parseArgs():
                 tab = None;
                 try:
                     with open(sys.argv[i]) as f:
-                        tab = f.read(f);
+                        tab = f.read();
                     if tab:
-                        tmp["DRUMS"] = parseTab( tab );
+                        tmp["DRUMS"] = {"BD":[],"SD":[],"HH":[],"C1":[]};
+                        split = re.split(r"\n{2,}",tab);
+                        for t in split:
+                            r = parseTab( tab );
+                            tmp["DRUMS"]["BD"] += r["BD"];
+                            tmp["DRUMS"]["SD"] += r["SD"];
+                            tmp["DRUMS"]["HH"] += r["HH"];
+                            tmp["DRUMS"]["C1"] += r["C1"];
                 except:
                     traceback.print_exc();
                 i += 1;
@@ -480,9 +503,16 @@ def parseArgs():
                 try:
                     tab = None;
                     with open(sys.argv[i]) as f:
-                        tmp["FILLS"] = f.read(f);
+                        tab = f.read();
                     if tab:
-                        tmp["FILLS"] = parseTab( tab );
+                        tmp["FILLS"] = {"BD":[],"SD":[],"HH":[],"C1":[]};
+                        split = re.split(r"\n{2,}",tab);
+                        for t in split:
+                            r = parseTab( tab );
+                            tmp["FILLS"]["BD"] += r["BD"];
+                            tmp["FILLS"]["SD"] += r["SD"];
+                            tmp["FILLS"]["HH"] += r["HH"];
+                            tmp["FILLS"]["C1"] += r["C1"];
                 except:
                     traceback.print_exc();
                 i += 1;
