@@ -69,7 +69,7 @@ def getOffsetNote(i,scale,root,offset):
     index = 1;
     if i == "i":
         index = 1;
-    elif i == "iI":
+    elif i == "ii":
         index = 2;
     elif i == "iii":
         index = 3;
@@ -96,14 +96,14 @@ def getOffsetNote(i,scale,root,offset):
 def getDitty( scale, root, prog):
     arr = [];
     for i in prog:
-        arr.append( getMidiKey( scale, i , root ) );
+        arr.append( getOffsetNote( i , scale, root, 0 ) );
     #find commond notes
     tmp = {};
     for i in prog:
         if i == 'vi':
             i = 'i';
 
-        n = getMidiKey( scale, i , root );
+        n =  getOffsetNote( i , scale, root, 0 );
         
         if n != None: 
             k = str(n)
@@ -210,34 +210,33 @@ def task( ):
             pnt = _STATE["DRUM_PNT"];
         
         #DB
+        if _STATE["NOTES"]["BD"]:
+            _player.send( mido.Message('note_off',note=BD_KEY,channel=0));
+            _STATE["NOTES"]["BD"] = None;
         if seq["BD"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-" and canPlay( "BD", _STATE["MIX"] ):
             _player.send( mido.Message('note_on', note=BD_KEY , velocity = 100,channel=0 ));
             _STATE["NOTES"]["BD"] = BD_KEY
-        elif _STATE["NOTES"]["BD"]:
-            _player.send( mido.Message('note_off',note=BD_KEY,channel=0));
-            _STATE["NOTES"]["BD"] = None;
         #SD 
+        if _STATE["NOTES"]["SD"]:
+            _player.send( mido.Message('note_off', note=SD_KEY,channel=0));
+            _STATE["NOTES"]["SD"] = None;
         if seq["SD"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-" and canPlay( "SD", _STATE["MIX"] ):
             _player.send( mido.Message('note_on',note=SD_KEY , velocity = 100,channel=0 ));
             _STATE["NOTES"]["SD"] = SD_KEY;
-        elif _STATE["NOTES"]["SD"]:
-            _player.send( mido.Message('note_off', note=SD_KEY,channel=0));
-            _STATE["NOTES"]["SD"] = None;
         #HH
+        if _STATE["NOTES"]["HH"]:
+            _player.send( mido.Message('note_off',note=HH_KEY,channel=0));
+            _STATE["NOTES"]["HH"] = None;
         if seq["HH"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-" and canPlay( "HH", _STATE["MIX"] ):
             _player.send( mido.Message('note_on', note=HH_KEY , velocity = 100,channel=0 ));
             _STATE["NOTES"]["HH"] = HH_KEY;
-        elif _STATE["NOTES"]["HH"]:
-            _player.send( mido.Message('note_off',note=HH_KEY,channel=0));
-            _STATE["NOTES"]["HH"] = None;
         #C1
+        if _STATE["NOTES"]["C1"]:
+            _player.send( mido.Message('note_off', note=C1_KEY, channel=0));
+            _STATE["NOTES"]["C1"] = None;
         if seq["C1"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-" and canPlay( "C1" , _STATE["MIX"] ):
             _player.send( mido.Message('note_on',note=C1_KEY, velocity = 100,channel=0 ));
             _STATE["NOTES"]["C1"] = C1_KEY;
-        elif _STATE["NOTES"]["C1"]:
-            _player.send( mido.Message('note_off', note=C1_KEY, channel=0));
-            _STATE["NOTES"]["C1"] = None;
-        
         if _STATE["NOTES"]["BASS"]:
             _player.send( mido.Message('note_off', note=_STATE["NOTES"]["BASS"] , velocity = 100,channel=4 ));
             _STATE["NOTES"]["BASS"] = None;
@@ -250,26 +249,38 @@ def task( ):
         if ( seq["BD"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-" or
             seq["SD"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-"):
             if randint(0, _STATE["RAND"] ) == 0 and canPlay( "BASS", _STATE["MIX"] ):
-                _STATE["NOTES"]["BASS"] = getMidiKey( _STATE["SCALE"], _STATE["CORD"], _STATE["ROOT_BASS"] );
+                _STATE["NOTES"]["BASS"] = getOffsetNote( _STATE["CORD"] , _STATE["SCALE"] , _STATE["ROOT_BASS"], 0 );
                 _player.send( mido.Message('note_on', note=_STATE["NOTES"]["BASS"] , velocity = 100,channel=4 ));
             if not _STATE["NOTES"]["DITTY_NOTE"] and canPlay( "DITTY", _STATE["MIX"] ) and _STATE["NOTES"]["DITTY"] and randint(0,1) == 0:
                 n = _STATE["NOTES"]["DITTY"].pop();
-                _player.send( mido.Message('note_on', note=n , velocity = randint(75, 100) ,channel=6 ));
-                _STATE["NOTES"]["DITTY_NOTE"] = n;
+                if n:
+                    _player.send( mido.Message('note_on', note=n , velocity = randint(75, 100) ,channel=6 ));
+                    _STATE["NOTES"]["DITTY_NOTE"] = n;
         
        
+        if _STATE["NOTES"]["TRIGGER"]:
+            _player.send( mido.Message('note_off', note=_STATE["NOTES"]["TRIGGER"] , velocity = 100, channel=0 ));
+            _STATE["NOTES"]["TRIGGER"] = None;
+
         if _STATE["SIXTEENTH_PNT"] == 0:
-            
             #NEW MIX
             _STATE["MIX"] = 0;
             if randint(0,_STATE["RAND"]) == 0:
                 _STATE["MIX"] = randint(0, len(MIXES) - 1);
-            _STATE["CORD"] = getCord( _STATE["RAND"] , _STATE["PROGRESSIONS"] );
+            
+            if "SLOWED" in _STATE:
+                _STATE["SLOWED_PNT"] += 1;
+                if _STATE["SLOWED_PNT"] > _STATE["SLOWED"]:
+                    _STATE["SLOWED_PNT"] = 0;
+                    _STATE["CORD"] = getCord( _STATE["RAND"] , _STATE["PROGRESSIONS"] );
+            else:
+                _STATE["CORD"] = getCord( _STATE["RAND"] , _STATE["PROGRESSIONS"] );
             #LEAD
             if "ARP" not in _STATE:
                 if _STATE["NOTES"]["LEAD"]:
                     _player.send( mido.Message( 'note_off', note= _STATE["NOTES"]["LEAD"], velocity = 100, channel=5 ) );
-                _STATE["NOTES"]["LEAD"] = getMidiKey( _STATE["SCALE"], _STATE["CORD"], _STATE["ROOT_LEAD"]);
+                #_STATE["NOTES"]["LEAD"] = getMidiKey( _STATE["SCALE"], _STATE["CORD"], _STATE["ROOT_LEAD"]);
+                _STATE["NOTES"]["LEAD"] = getOffsetNote( _STATE["CORD"] , _STATE["SCALE"] , _STATE["ROOT_LEAD"], 0 );
                 if canPlay("LEAD", _STATE["MIX"] ):
                     _player.send( mido.Message('note_on', note=_STATE["NOTES"]["LEAD"] , velocity = 100, channel=5 ));
                 
@@ -298,14 +309,6 @@ def task( ):
             _STATE["BAR"] += 1;
             if _STATE["BAR"] > 4:
                 _STATE["BAR"] = 1;
-        if _STATE["NOTES"]["TRIGGER"]:
-            _player.send( mido.Message('note_off', note=_STATE["NOTES"]["TRIGGER"] , velocity = 100, channel=0 ));
-            _STATE["NOTES"]["TRIGGER"] = None;
-
-  
-
-
-
 
         #ARP
         if "ARP" in _STATE:
@@ -417,8 +420,7 @@ def main( args ):
              getNote( tmp["LEAD"] ),          
              getNote( tmp["ARP"] ),          
              getNote( tmp["DITTY_NOTE"] ),        
-             getNote( tmp["TRIGGER"] ) if tmp["TRIGGER"] else ""          
-             ));
+             getNote( tmp["TRIGGER"] ) ));
         task( );
 
     scheduler = BlockingScheduler()
@@ -465,6 +467,11 @@ def parseArgs():
                 i += 1;
                 tmp["PORT"] = int(sys.argv[i],0);
                 i += 1;
+            elif sys.argv[i] == "--SLOWED":
+                i += 1;
+                tmp["SLOWED"] = int(sys.argv[i],0);
+                tmp["SLOWED_PNT"] = 0;
+                i += 1;
             elif sys.argv[i] == "--ARP":
                 i += 1;
                 tmp["ARP"] = sys.argv[i];
@@ -474,7 +481,7 @@ def parseArgs():
                 try:
                     arr = None;
                     with open(sys.argv[i]) as f:
-                        arr = f.read(f);
+                        arr = f.read().splitlines()
                     if arr:
                         tmp["PROGRESSIONS"] = [ arr[i].split("-") for i in range(0,len(arr)) ];
                 except:

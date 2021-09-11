@@ -4,7 +4,7 @@ A script that generates midi drum, bass and lead sequences, in a 4:4 time signat
 
 - Run with defaults: `./generateMidi.py`  
 - help: `./generateMidi.py -?`
-- `./generateMidi.py --scale <scale> --root <root> --BPM <bpm> --RAND <randomization> --PORT <port> --DRUMS <tab file> --FILL <tab file> --PROGRESSIONS <progressions file> --ARP <arpeggiator sequence>`  
+- `./generateMidi.py --scale <scale> --root <root> --BPM <bpm> --RAND <randomization> --PORT <port> --DRUMS <tab file> --FILL <tab file> --PROGRESSIONS <progressions file> --ARP <arpeggiator sequence> --SLOWED <slowed value>`  
 
 ## Arguments 
 
@@ -15,6 +15,7 @@ A script that generates midi drum, bass and lead sequences, in a 4:4 time signat
 - tab file: a file containing drum tabs, with soxteenth divisions, and labels: BD, SD, HH, C1  
 - progressions file: a file containing cord progressions e.g `i-vi-iv-v`
 - arpeggiator sequence e.g. `1-3--53-`
+- slowed value specifies how many bars until a possible cord change
 
 # defaults
 
@@ -65,4 +66,3 @@ A script that generates midi drum, bass and lead sequences, in a 4:4 time signat
 | Lead ditty  | 4       |  -       |
 
 † Intendend to be used as sample triggers. Notes cycle every 16 bars and a random trigger.
-
