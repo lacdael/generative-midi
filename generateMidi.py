@@ -10,7 +10,6 @@ import mido
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 
-
 SCALES = {
   'major': (2, 2, 1, 2, 2, 2, 1),
   'minor': (2, 1, 2, 2, 1, 2, 2),
@@ -48,11 +47,9 @@ MIXES = [
 def canPlay( what , i ):
     return MIXES[ i ][ what ];
 
-
 _BASS_MIDI_KEYS = {"c":36,"c#":37,"d":38,"d#":39,"e":40,"f":41,"f#":42,"g":43,"g#":44,"a":45,"a#":46,"b":47};
 _LEAD_MIDI_KEYS = {"c":48,"c#":49,"d":50,"d#":51,"e":52,"f":53,"f#":54,"g":55,"g#":56,"a":57,"a#":58,"b":57};
 #_LEAD_MIDI_KEYS = {"c":60,"c#":61,"d":62,"d#":63,"e":64,"f":65,"f#":66,"g":67,"g#":68,"a":69,"a#":70,"b":71};
-
 
 def getNote( n ):
     if not n:
@@ -130,24 +127,6 @@ def getDitty( scale, root, prog):
             arr.append( int( k ) );
     return arr;
             
-
-def getMidiKey( scale, ind, root):
-    if scale not in SCALES:
-        return 0;
-    i = 0;
-    if ind == "i":
-        return root;
-    elif ind == "ii":
-        return root + SCALES[ scale ][0];
-    elif ind == "iii":
-        return root + sum(SCALES[ scale ][0:2]);
-    elif ind == "iv":
-        return root + sum(SCALES[ scale ][0:3]);
-    elif ind == "v":
-        return root + sum(SCALES[ scale ][0:4]);                      
-    elif ind == "vi":
-        return root + sum(SCALES[ scale ][0:5]);
-
 def getCord( r , progs ):
     global _STATE
     if not hasattr(getCord,"pnt"):
@@ -257,7 +236,7 @@ def task( ):
                     _player.send( mido.Message('note_on', note=n , velocity = randint(75, 100) ,channel=6 ));
                     _STATE["NOTES"]["DITTY_NOTE"] = n;
         
-       
+        #TRIGGER CLEAR
         if _STATE["NOTES"]["TRIGGER"]:
             _player.send( mido.Message('note_off', note=_STATE["NOTES"]["TRIGGER"] , velocity = 100, channel=0 ));
             _STATE["NOTES"]["TRIGGER"] = None;
@@ -267,19 +246,27 @@ def task( ):
             _STATE["MIX"] = 0;
             if randint(0,_STATE["RAND"]) == 0:
                 _STATE["MIX"] = randint(0, len(MIXES) - 1);
-            
+
+
+
+
             if "SLOWED" in _STATE:
                 _STATE["SLOWED_PNT"] += 1;
                 if _STATE["SLOWED_PNT"] > _STATE["SLOWED"]:
                     _STATE["SLOWED_PNT"] = 0;
                     _STATE["CORD"] = getCord( _STATE["RAND"] , _STATE["PROGRESSIONS"] );
+                    if randint(0,_STATE["RAND"]) == 0:
+                        _STATE["MIX"] = randint(0, len(MIXES) - 1);
             else:
                 _STATE["CORD"] = getCord( _STATE["RAND"] , _STATE["PROGRESSIONS"] );
+                _STATE["MIX"] = 0;
+                if randint(0,_STATE["RAND"]) == 0:
+                    _STATE["MIX"] = randint(0, len(MIXES) - 1);
+            
             #LEAD
             if "ARP" not in _STATE:
                 if _STATE["NOTES"]["LEAD"]:
                     _player.send( mido.Message( 'note_off', note= _STATE["NOTES"]["LEAD"], velocity = 100, channel=5 ) );
-                #_STATE["NOTES"]["LEAD"] = getMidiKey( _STATE["SCALE"], _STATE["CORD"], _STATE["ROOT_LEAD"]);
                 _STATE["NOTES"]["LEAD"] = getOffsetNote( _STATE["CORD"] , _STATE["SCALE"] , _STATE["ROOT_LEAD"], 0 );
                 if canPlay("LEAD", _STATE["MIX"] ):
                     _player.send( mido.Message('note_on', note=_STATE["NOTES"]["LEAD"] , velocity = 100, channel=5 ));
@@ -302,8 +289,6 @@ def task( ):
                     n = notes[ randint(0, len(notes) - 1 ) ]
                     _player.send( mido.Message('note_on', note=n , velocity = 100, channel=0 ));
                     _STATE["NOTES"]["TRIGGER"] = n  
-          
-        
         
         elif _STATE["SIXTEENTH_PNT"] == 15:
             _STATE["BAR"] += 1;
@@ -336,7 +321,6 @@ _player = None;
 
 def main( args ):
     global _STATE, _player;
-
 
     args["ROOT_BASS"] = _BASS_MIDI_KEYS[ args["ROOT"] ];
     args["ROOT_LEAD"] = _LEAD_MIDI_KEYS[ args["ROOT"] ];
