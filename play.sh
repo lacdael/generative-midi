@@ -1,4 +1,4 @@
 #!/bin/sh
 
-./generateMidi.py --ARP 13--5-3-13-5-31- --DRUMS ./drums.txt --FILLS ./fills.txt --PROGRESSIONS progressions.txt --SLOWED 2 
+./generateMidi.py --BASS-ARP 13-4--3-----3---4--------------- --DRUMS ./drums.txt --FILLS ./fills.txt --PROGRESSIONS progressions.txt --SLOWED 4 --BPM 92
 

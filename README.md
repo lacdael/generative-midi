@@ -4,7 +4,7 @@ A script that generates midi drum, bass and lead sequences, in a 4:4 time signat
 
 - Run with defaults: `./generateMidi.py`  
 - help: `./generateMidi.py -?`
-- `./generateMidi.py --scale <scale> --root <root> --BPM <bpm> --RAND <randomization> --PORT <port> --DRUMS <tab file> --FILL <tab file> --PROGRESSIONS <progressions file> --ARP <arpeggiator sequence> --SLOWED <slowed value>`  
+- `./generateMidi.py --scale <scale> --root <root> --BPM <bpm> --RAND <randomization> --PORT <port> --DRUMS <tab file> --FILL <tab file> --PROGRESSIONS <progressions file> --ARP <arpeggiator sequence> --BASS-ARP <arpeggiator sequence> --SLOWED <slowed value>`  
 
 ## Arguments 
 
@@ -58,11 +58,8 @@ A script that generates midi drum, bass and lead sequences, in a 4:4 time signat
 | Hi-Hat      | 1       | 42 (F#2) |
 | Cymbal      | 1       | 49 (C#3) |
 | Ride1†      | 1       | 51 (D#3) |
-| Ride2†      | 1       | 59 (B3)  |
-| Tambourine† | 1       | 54 (F#3) |
-| Cowbell†    | 1       | 56 (G#3) |
 | Bass        | 2       |  -       |
 | Pad         | 3       |  -       |
 | Lead ditty  | 4       |  -       |
 
-† Intendend to be used as sample triggers. Notes cycle every 16 bars and a random trigger.
+† Intendend to be used as sample triggers.
