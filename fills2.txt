@@ -1,0 +1,10 @@
+C1|------x-------x-|
+HH|xxxxxx-xxxxxxx-x|
+SD|---o------------|
+BD|o---o---o---o---|
+
+C1|------x-------x-|
+HH|xxxxxx-xxxxxxx--|
+SD|---o--------o---|
+BD|o---o---o---o---|
+
