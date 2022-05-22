@@ -247,8 +247,8 @@ def task( ):
             if randint(0, _STATE["RAND"] ) == 0 and canPlay( "BASS", _STATE["MIX"] ):
                 n = getOffsetNote( _STATE["CORD"] , _STATE["SCALE"] , _STATE["ROOT_BASS"], 0 );
                 if n:
-                    _player.send( mido.Message('note_on', note=_STATE["NOTES"]["BASS"] , velocity = 100,channel=4 ));
-                    offMsgs.append( mido.Message('note_off', note=_STATE["NOTES"]["BASS"] , velocity = 100,channel=4 ));
+                    _player.send( mido.Message('note_on', note=n , velocity = 100,channel=4 ));
+                    offMsgs.append( mido.Message('note_off', note=n , velocity = 100,channel=4 ));
                     n = _STATE["NOTES"]["BASS"]
         #DITTY
         if ( seq["BD"][ pnt ][ _STATE["SIXTEENTH_PNT"] ] != "-" or
@@ -356,6 +356,19 @@ def offMessages( d ):
     for i in range(0,len(d)):
         _player.send( d[i] );
 
+#ticks = [".","|","/","-","\\","|","/","-","\\"];
+ticks = [
+         "\033[1;100m \033[0m",
+        "\033[1;40m \033[0m",
+         "\033[1;100m \033[0m",
+         "\033[1;47m \033[0m",
+         "\033[1;107m \033[0m",
+         "\033[48;5;255m \033[0m",
+         "\033[1;107m \033[0m",
+         "\033[1;47m \033[0m"
+         ];
+tickPtr = 0;
+
 def main( args ):
     global _STATE, _player;
 
@@ -412,8 +425,34 @@ def main( args ):
         done = input("Have you mapped note {} ({}) for channel 0 ? [y]es/[n]o?".format(51,getNote(51)));
     done ="n";
 
+    def note2Color( n ):
+        
+        #c red
+        if n.startswith("c") or n == "i":
+            v = "\033[1;41m \033[0m"
+        #d orange
+        elif n.startswith("d") or n == "ii":
+            v = "\033[1;43m \033[0m"
+        #green
+        elif n.startswith("e") or n == "iii":
+            v = "\033[1;42m \033[0m"
+        #blue
+        elif n.startswith("f") or n == "iv":
+            v = "\033[1;44m \033[0m"
+        #magenta
+        elif n.startswith("g") or n == "v":
+            v = "\033[1;45m \033[0m"
+        #purple
+        elif n.startswith("a") or n == "vi":
+            v = "\033[1;105m \033[0m"
+        elif n == "vii":
+            v = "\033[1;153m \033[0m"
+        else:
+            v = (ticks[tickPtr]);
+        return v;
 
     def job():
+        global tickPtr;
         tmp = _STATE["NOTES"];
         tmplt = "";
 
@@ -422,24 +461,34 @@ def main( args ):
         hit3 = "o";
         hit4 = "o";
         if sys.platform == "linux" or sys.platform == "linux2":
-            hit1 = "\033[1;35mO\033[0m" # magenta
-            hit2 = "\033[1;34mO\033[0m" # blue
-            hit3 = "\033[1;36mx\033[0m" # cyan
-            hit4 = "\033[1;33mx\033[0m" # yellow
-            tmplt = "\033[1;32m{:4s}\033[0m {} {} {} {} \033[1;35m{:2s}\033[0m \033[1;34m{:2s}\033[0m \033[1;36m{:2s}\033[0m \033[1;33m{:2s}\033[0m \033[1;31m{:2s}\033[0m"
+            tmplt = "{} {} {} {} {} {} {} {} {} {}"
+            print(tmplt.format(
+                note2Color( _STATE["CORD"] ) ,
+                note2Color( "c" if tmp["BD"] else "-" ),
+                note2Color( "e" if tmp["SD"] else "-" ),
+                note2Color( "g" if tmp["HH"] else "-" ),
+                note2Color( "a" if tmp["C1"] else "-" ),
+                note2Color( getNote( tmp["BASS"] )) ,
+                note2Color( getNote( tmp["LEAD"] )) ,          
+                note2Color( getNote( tmp["ARP"] )) ,          
+                note2Color( getNote( tmp["DITTY_NOTE"] )) ,        
+                note2Color( getNote( tmp["TRIGGER"] ) ) ) );
+            tickPtr += 1;
+            if tickPtr >= len( ticks ):
+                tickPtr = 0;
         else:
             tmplt = "{:4s} {} {} {} {} {:2s} {:2s} {:2s} {:2s} {:2s}"
-        print(tmplt.format(
-            _STATE["CORD"] ,
-            ( hit1 if tmp["BD"] else "-" ),
-            ( hit2 if tmp["SD"] else "-" ),
-            ( hit3 if tmp["HH"] else "-" ),
-            ( hit4 if tmp["C1"] else "-" ),
-             getNote( tmp["BASS"] ).upper() ,
-             getNote( tmp["LEAD"] ),          
-             getNote( tmp["ARP"] ),          
-             getNote( tmp["DITTY_NOTE"] ),        
-             getNote( tmp["TRIGGER"] ) ));
+            print(tmplt.format(
+                _STATE["CORD"] ,
+                ( hit1 if tmp["BD"] else "-" ),
+                ( hit2 if tmp["SD"] else "-" ),
+                ( hit3 if tmp["HH"] else "-" ),
+                ( hit4 if tmp["C1"] else "-" ),
+                 getNote( tmp["BASS"] ) ,
+                 getNote( tmp["LEAD"] ) ,          
+                 getNote( tmp["ARP"] ) ,          
+                 getNote( tmp["DITTY_NOTE"] ) ,        
+                 getNote( tmp["TRIGGER"] ) ) );
         task( );
 
     scheduler = BlockingScheduler()
